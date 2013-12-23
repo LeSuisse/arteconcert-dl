@@ -33,16 +33,18 @@ function getRtmpdumpArteliveweb($url) {
     <title>ArteLiveWeb rtmpdump commands extracter</title>
 </head>
 <body>
-<?php
-try {
-    $rtmpdumps = getRtmpdumpArteliveweb($_GET['url']);
-    foreach ($rtmpdumps as $format => $command) {
-        echo "$format : $command<br />";
+<div>
+    <?php
+    try {
+        $rtmpdumps = getRtmpdumpArteliveweb($_GET['url']);
+        foreach ($rtmpdumps as $format => $command) {
+            echo "$format : $command<br />";
+        }
     }
-}
-catch (Exception $e) {
-    echo $e->getMessage();
-}
-?>
+    catch (Exception $e) {
+        echo $e->getMessage();
+    }
+    ?>
+</div>
 </body>
 </html>
