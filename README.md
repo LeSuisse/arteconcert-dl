@@ -1,10 +1,11 @@
-arteliveweb-dl
-==============
+# arteconcert-dl (ex arteliveweb-dl)
+Get to you direct URLs for downloading ARTE Concert videos. If available, multiple video qualities are proposed.
 
-Give rtmpdump parameters for downloading ARTE Live Web Video
+## Usage
 
-This is a quick & dirty script.
+### PHP
+PHP version except a GET parameter named `url`.
 
-Usage
-------------
-./arteliveweb.py [urlArteLiveWeb]
+### Python
+Python version has a dependency to [LXML](http://lxml.de/)
+`./arteliveweb.py [urlArteLiveWeb]`

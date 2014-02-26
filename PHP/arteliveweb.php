@@ -1,44 +1,46 @@
 <?php
-function parseRtmpUrl($url) {
-    preg_match('@rtmp://(.*?)/(.*?/.*?)/(.*?)\?@', $url, $parsedUrl);
-    if(!isset($parsedUrl[1])) {
-        throw new Exception("L'adresse du flux n'a pas pu être récupérée ou n'est pas dans le format attendu");
-        
+function getVideoPage($url) {
+    $dom = new DOMDocument();
+    libxml_use_internal_errors(true);
+    if (!$dom->loadHTMLFile($url)) {
+        throw new Exception("La page n'a pas pu être chargée");
     }
-    $host = $parsedUrl[1];
-    $app = $parsedUrl[2];
-    $playpath = $parsedUrl[3];
-    preg_match('@.*?/(\d+.*)@', $playpath, $name);
-    return "rtmpdump --host $host --app $app --playpath $playpath -o $name[1]";
+    $domXpath = new DOMXPath($dom);
+    $res = $domXpath->query("//@arte_vp_url");
+    if (!$res->length > 0) {
+        throw new Exception("La page contenant la vidéo n'a pas pu être trouvée");
+    }
+    return $res->item(0)->value;
 }
 
-function getRtmpdumpArteliveweb($url) {
-    $data = file_get_contents($url);
-    preg_match('@eventId=(\d+)@', $data, $eventId);
-    if(!isset($eventId[1])) {
-        throw new Exception("L'event ID n'a pas pu être lu pour la page demandée");
+function getUrlArteConcert($url) {
+    $jsonVideo = json_decode(file_get_contents(getVideoPage($url)));
+    $videoUrls = $jsonVideo->videoJsonPlayer->VSR;
+    if ($videoUrls == NULL) {
+        throw new Exception("L'URL de la vidéo n'a pu être trouvée");
     }
-    $urlXml = "http://download.liveweb.arte.tv/o21/liveweb/events/event-$eventId[1].xml";
-    $docXml = simplexml_load_string(file_get_contents($urlXml));
-    return array(
-        'SD' => parseRtmpUrl((string) $docXml->event->video->urlSd),
-        'HD' => parseRtmpUrl((string) $docXml->event->video->urlHd)
-    );
+    $res = array();
+    foreach ($videoUrls as $url) {
+        if ($url->quality != '') {
+            $res[$url->quality] = $url->url;
+        }
+    }
+    return $res;
 }
 ?>
 <!doctype html>
 <html lang="fr">
 <head>
     <meta charset="utf-8">
-    <title>ArteLiveWeb rtmpdump commands extracter</title>
+    <title>ARTE Concert urls extracter</title>
 </head>
 <body>
 <div>
     <?php
     try {
-        $rtmpdumps = getRtmpdumpArteliveweb($_GET['url']);
-        foreach ($rtmpdumps as $format => $command) {
-            echo "$format : $command<br />";
+        $urls = getUrlArteConcert($_GET['url']);
+        foreach ($urls as $quality => $url) {
+            echo "$quality : <a href=\"$url\">$url</a><br />";
         }
     }
     catch (Exception $e) {

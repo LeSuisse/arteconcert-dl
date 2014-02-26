@@ -2,33 +2,36 @@
 # -*- coding: utf-8 -*-
 
 from urllib.request import urlopen
-import re
 import sys
-from xml.dom import minidom
+import json
+from lxml import html
 
 
-def parse_rtmp_url(url):
-    parsed_url = re.search('rtmp://(.*?)/(.*?/.*?)/(.*?)\?', url)
-    host = parsed_url.group(1)
-    app = parsed_url.group(2)
-    playpath = parsed_url.group(3)
-    name = re.search('.*?/(\d+.*)', playpath).group(1)
-    return 'rtmpdump --host %s --app %s --playpath %s -o %s' % (host, app, playpath, name)
+def get_video_page(url):
+    page = html.parse(url)
+    urlres = page.xpath('//@arte_vp_url')
+    if len(urlres) == 0:
+        raise Exception("La page contenant la vidéo n'a pas pu être traitée")
+    return urlres[0]
 
 
-def get_rtmpdump_arteliveweb(url):
-    data = urlopen(url).read().decode('utf-8')
-    event_id = re.search('eventId=(\d+)', data).group(1)
-    urlxml = 'http://download.liveweb.arte.tv/o21/liveweb/events/event-' + event_id + '.xml'
-    docxml = minidom.parseString(urlopen(urlxml).read().decode('utf-8'))
-    itemlisthd = docxml.getElementsByTagName('urlHd')
-    itemlistsd = docxml.getElementsByTagName('urlSd')
-    res = {
-        'hd': parse_rtmp_url(itemlisthd[0].childNodes[0].nodeValue),
-        'sd': parse_rtmp_url(itemlistsd[0].childNodes[0].nodeValue)
-    }
+def get_url_arteconcert(url):
+    data = urlopen(get_video_page(url)).read().decode('utf-8')
+    video_urls = json.loads(data)
+    res = {}
+    try:
+        for type, value in video_urls['videoJsonPlayer']['VSR'].items():
+            if value['quality'] != "":
+                res[value['quality']] = value['url']
+    except KeyError:
+        raise Exception("L'URL de la vidéo n'a pu être trouvée")
     return res
 
-rtmpdumps = get_rtmpdump_arteliveweb(sys.argv[1])
-print('SD : ' + rtmpdumps['sd'])
-print('HD : ' + rtmpdumps['hd'])
+
+if __name__ == '__main__':
+    try:
+        urls = get_url_arteconcert(sys.argv[1])
+        for quality, url in urls.items():
+            print(quality + ' : ' + url)
+    except Exception as err:
+        sys.stderr.write(str(err))
